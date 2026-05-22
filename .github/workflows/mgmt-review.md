@@ -77,7 +77,7 @@ safe-outputs:
     footer: "if-body"
     target: "${{ github.event.pull_request.number || github.event.issue.number }}"
   add-labels:
-    max: 1
+    max: 2
     target: "${{ github.event.pull_request.number || github.event.issue.number }}"
   remove-labels:
     max: 1
@@ -252,6 +252,8 @@ The comment must report **every** blocking item from your Step 2 list — not ju
 - Do NOT include any review comments.
 - Do NOT skip failures just because auto-fix was attempted but failed.
 
+**Before composing the comment**: If your Step 2 blocker list includes `Check-format FAILED`, call `add-labels(['copilot-fix-format'])` on the PR **right now**, before posting the comment. This is what actually triggers the Copilot coding agent — do not defer it to later.
+
 Compose a single GitHub PR comment (not a review) with:
 - **Header**: `## Next Steps to Merge`
 - **Message**: `Only failed checks and required actions are listed below:`
@@ -286,15 +288,8 @@ Only failed checks and required actions are listed below.
 After completing all review steps, update the PR labels to indicate completion:
 
 1. Remove the `mgmt-review-in-progress` label.
-2. Determine the exact label list using this table — **evaluate before calling `add-labels`**:
+2. Call `add-labels(['mgmt-review-added'])` on the PR.
 
-   | Did your "Next Steps to Merge" comment include a `❌ Check-format` bullet? | Labels to add |
-   |---|---|
-   | **Yes** | `['mgmt-review-added', 'copilot-fix-format']` |
-   | **No** | `['mgmt-review-added']` |
-
-   > ⚠️ `copilot-fix-format` is what **actually triggers** the Copilot coding agent. Writing "Copilot has been assigned" in the comment alone does nothing — the label must be added.
-
-3. Call `add-labels` **once** with the label list determined in step 2.
+   > Note: `copilot-fix-format` is handled in Step 3 of the guidance workflow when Check-format FAILED is detected — do not add it here again.
 
 Use the GitHub MCP tool to manage these labels on PR #${{ github.event.pull_request.number }}.
