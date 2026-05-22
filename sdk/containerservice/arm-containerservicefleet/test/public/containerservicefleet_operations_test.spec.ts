@@ -13,8 +13,7 @@ import { ContainerServiceFleetClient } from "../../src/containerServiceFleetClie
 import { describe, it, assert, beforeEach, afterEach } from "vitest";
 
 const replaceableVariables: Record<string, string> = {
-  SUBSCRIPTION_ID: "azure_subscription_id",
-};
+  SUBSCRIPTION_ID: "azure_subscription_id",};
 
 const recorderOptions: RecorderStartOptions = {
   envSetupForPlayback: replaceableVariables,
