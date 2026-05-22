@@ -1,40 +1,54 @@
 name: Copilot Format Fixer
 
 on:
-  pull_request_target:
-    types: [labeled]
+  workflow_run:
+    workflows: ["Management Release Assistant"]
+    types: [completed]
 
 jobs:
   assign-to-copilot:
-    if: github.event.label.name == 'copilot-fix-format'
     runs-on: ubuntu-latest
     permissions:
       issues: write
       pull-requests: write
     steps:
-      - name: Remove trigger label
+      - name: Assign PR to Copilot if copilot-fix-format label is present
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            const headSha = context.payload.workflow_run.head_sha;
+
+            // Find PRs associated with this commit sha
+            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              ...context.repo,
+              commit_sha: headSha
+            });
+
+            const targetPR = prs.find(pr => pr.labels.some(l => l.name === 'copilot-fix-format'));
+            if (!targetPR) {
+              core.info('No PR with copilot-fix-format label found for this workflow run');
+              return;
+            }
+
+            const prNumber = targetPR.number;
+
+            // Remove trigger label
             try {
               await github.rest.issues.removeLabel({
                 ...context.repo,
-                issue_number: context.payload.pull_request.number,
+                issue_number: prNumber,
                 name: 'copilot-fix-format'
               });
             } catch (e) {
               core.warning(`Could not remove trigger label: ${e.message}`);
             }
 
-      - name: Assign PR to Copilot coding agent
-        uses: actions/github-script@v9
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
+            // Assign to Copilot coding agent
             await github.rest.issues.addAssignees({
               ...context.repo,
-              issue_number: context.payload.pull_request.number,
+              issue_number: prNumber,
               assignees: ['copilot']
             });
-            core.info(`Assigned PR #${context.payload.pull_request.number} to Copilot coding agent to fix formatting.`);
+
+            core.info(`Assigned PR #${prNumber} to Copilot coding agent to fix formatting`);
