@@ -1,0 +1,40 @@
+name: Copilot Format Fixer
+
+on:
+  pull_request_target:
+    types: [labeled]
+
+jobs:
+  assign-to-copilot:
+    if: github.event.label.name == 'copilot-fix-format'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Remove trigger label
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            try {
+              await github.rest.issues.removeLabel({
+                ...context.repo,
+                issue_number: context.payload.pull_request.number,
+                name: 'copilot-fix-format'
+              });
+            } catch (e) {
+              core.warning(`Could not remove trigger label: ${e.message}`);
+            }
+
+      - name: Assign PR to Copilot coding agent
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.issues.addAssignees({
+              ...context.repo,
+              issue_number: context.payload.pull_request.number,
+              assignees: ['copilot']
+            });
+            core.info(`Assigned PR #${context.payload.pull_request.number} to Copilot coding agent to fix formatting.`);
