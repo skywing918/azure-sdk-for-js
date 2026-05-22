@@ -146,7 +146,9 @@ Follow the guidelines in [mgmt-review-guidelines.md](../prompts/mgmt-review-guid
 
 Submit your findings as a **pull request review** with inline code comments.
 
-For each finding, create a **review comment** on the specific file and
+> ⚠️ **Formatting issues MUST NOT have inline review comments.** Do not call `create-pull-request-review-comment` for any formatting or code style issue. Instead, count the total number of formatting issues found and include only the count in the review body (see below). The `copilot-fix-format` label added in the guidance workflow will trigger the auto-fix.
+
+For each **non-formatting** finding, create a **review comment** on the specific file and
 line using `create-pull-request-review-comment`:
 
 > 🔴 **Tool Issue** — `CHANGELOG.md:42`
@@ -158,7 +160,7 @@ After all inline comments, **submit the review** using
 `submit-pull-request-review` with:
 
 - **event**: `COMMENT` (this is an advisory review, not a blocking gate)
-- **body**: A one-paragraph summary (count of findings by issue type, or "No API design issues found") followed by:
+- **body**: A one-paragraph summary (count of findings by issue type, or "No API design issues found"). If formatting issues were detected, include a line such as `Found N formatting issue(s) — auto-fix has been triggered via the \`copilot-fix-format\` label.` Do **not** list the individual formatting locations. Then include:
 
 <pre>
 &lt;details&gt;
