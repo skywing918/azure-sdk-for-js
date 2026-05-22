@@ -27,40 +27,43 @@ jobs:
               commit_sha: headSha
             });
 
-            const targetPR = prs.find(pr => pr.labels.some(l => l.name === 'copilot-fix-format'));
-            if (!targetPR) {
+            // Process ALL PRs with the label (same commit may appear in multiple PRs)
+            const targetPRs = prs.filter(pr => pr.labels.some(l => l.name === 'copilot-fix-format'));
+            if (targetPRs.length === 0) {
               core.info('No PR with copilot-fix-format label found for this workflow run');
               return;
             }
 
-            const prNumber = targetPR.number;
-            core.info(`Found PR #${prNumber} with copilot-fix-format label`);
+            for (const targetPR of targetPRs) {
+              const prNumber = targetPR.number;
+              core.info(`Found PR #${prNumber} with copilot-fix-format label`);
 
-            // Remove trigger label (GITHUB_TOKEN is fine here)
-            const octokit = getOctokit(process.env.GITHUB_TOKEN);
-            try {
-              await octokit.rest.issues.removeLabel({
+              // Remove trigger label (GITHUB_TOKEN is fine here)
+              const octokit = getOctokit(process.env.GITHUB_TOKEN);
+              try {
+                await octokit.rest.issues.removeLabel({
+                  ...context.repo,
+                  issue_number: prNumber,
+                  name: 'copilot-fix-format'
+                });
+                core.info(`Removed copilot-fix-format label from PR #${prNumber}`);
+              } catch (e) {
+                core.warning(`Could not remove trigger label from PR #${prNumber}: ${e.message}`);
+              }
+
+              // Assign to Copilot coding agent using PAT so GitHub recognizes it as a user action
+              const result = await github.rest.issues.addAssignees({
                 ...context.repo,
                 issue_number: prNumber,
-                name: 'copilot-fix-format'
+                assignees: ['copilot']
               });
-              core.info(`Removed copilot-fix-format label from PR #${prNumber}`);
-            } catch (e) {
-              core.warning(`Could not remove trigger label: ${e.message}`);
-            }
 
-            // Assign to Copilot coding agent using PAT so GitHub recognizes it as a user action
-            const result = await github.rest.issues.addAssignees({
-              ...context.repo,
-              issue_number: prNumber,
-              assignees: ['copilot']
-            });
-
-            const assigned = result.data.assignees?.some(a => a.login === 'copilot');
-            if (assigned) {
-              core.info(`Successfully assigned PR #${prNumber} to Copilot coding agent`);
-            } else {
-              core.warning(`copilot was not added to assignees. Got: ${JSON.stringify(result.data.assignees?.map(a => a.login))}`);
+              const assigned = result.data.assignees?.some(a => a.login === 'copilot');
+              if (assigned) {
+                core.info(`Successfully assigned PR #${prNumber} to Copilot coding agent`);
+              } else {
+                core.warning(`copilot was not added to PR #${prNumber} assignees. Got: ${JSON.stringify(result.data.assignees?.map(a => a.login))}`);
+              }
             }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
