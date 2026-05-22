@@ -15,7 +15,9 @@ jobs:
       - name: Assign PR to Copilot if copilot-fix-format label is present
         uses: actions/github-script@v9
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Must use a PAT (not GITHUB_TOKEN) to trigger Copilot coding agent.
+          # GITHUB_TOKEN is a bot token — assignments made by bots do not trigger Copilot.
+          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const headSha = context.payload.workflow_run.head_sha;
 
@@ -32,23 +34,33 @@ jobs:
             }
 
             const prNumber = targetPR.number;
+            core.info(`Found PR #${prNumber} with copilot-fix-format label`);
 
-            // Remove trigger label
+            // Remove trigger label (GITHUB_TOKEN is fine here)
+            const octokit = getOctokit(process.env.GITHUB_TOKEN);
             try {
-              await github.rest.issues.removeLabel({
+              await octokit.rest.issues.removeLabel({
                 ...context.repo,
                 issue_number: prNumber,
                 name: 'copilot-fix-format'
               });
+              core.info(`Removed copilot-fix-format label from PR #${prNumber}`);
             } catch (e) {
               core.warning(`Could not remove trigger label: ${e.message}`);
             }
 
-            // Assign to Copilot coding agent
-            await github.rest.issues.addAssignees({
+            // Assign to Copilot coding agent using PAT so GitHub recognizes it as a user action
+            const result = await github.rest.issues.addAssignees({
               ...context.repo,
               issue_number: prNumber,
               assignees: ['copilot']
             });
 
-            core.info(`Assigned PR #${prNumber} to Copilot coding agent to fix formatting`);
+            const assigned = result.data.assignees?.some(a => a.login === 'copilot');
+            if (assigned) {
+              core.info(`Successfully assigned PR #${prNumber} to Copilot coding agent`);
+            } else {
+              core.warning(`copilot was not added to assignees. Got: ${JSON.stringify(result.data.assignees?.map(a => a.login))}`);
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
