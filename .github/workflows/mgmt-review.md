@@ -285,9 +285,16 @@ Only failed checks and required actions are listed below.
 
 After completing all review steps, update the PR labels to indicate completion:
 
-1. Remove the `mgmt-review-in-progress` label
-2. Add labels in a **single** `add-labels` call:
-   - **Always** include: `mgmt-review-added`
-   - **CRITICAL — MUST NOT SKIP**: If the comment you posted includes the `❌ Check-format` bullet (i.e., Check-format FAILED was detected), you **MUST** also include `copilot-fix-format` in the same `add-labels` call. Adding this label is what **actually** triggers the Copilot coding agent to fix the formatting — simply writing "Copilot has been assigned" in the comment is NOT enough. Omitting this label means no auto-fix will occur.
+1. Remove the `mgmt-review-in-progress` label.
+2. Determine the exact label list using this table — **evaluate before calling `add-labels`**:
+
+   | Did your "Next Steps to Merge" comment include a `❌ Check-format` bullet? | Labels to add |
+   |---|---|
+   | **Yes** | `['mgmt-review-added', 'copilot-fix-format']` |
+   | **No** | `['mgmt-review-added']` |
+
+   > ⚠️ `copilot-fix-format` is what **actually triggers** the Copilot coding agent. Writing "Copilot has been assigned" in the comment alone does nothing — the label must be added.
+
+3. Call `add-labels` **once** with the label list determined in step 2.
 
 Use the GitHub MCP tool to manage these labels on PR #${{ github.event.pull_request.number }}.
