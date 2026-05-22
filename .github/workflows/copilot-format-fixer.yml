@@ -51,19 +51,16 @@ jobs:
                 core.warning(`Could not remove trigger label from PR #${prNumber}: ${e.message}`);
               }
 
-              // Assign to Copilot coding agent using PAT so GitHub recognizes it as a user action
-              const result = await github.rest.issues.addAssignees({
+              // Trigger Copilot coding agent by posting a @copilot comment using PAT.
+              // Comment-based trigger is proven to work (assignment via API silently fails with bot tokens).
+              // Requires GH_AW_GITHUB_TOKEN to be a real user PAT — if only GITHUB_TOKEN is available,
+              // this comment will appear as the bot and will NOT trigger Copilot.
+              await github.rest.issues.createComment({
                 ...context.repo,
                 issue_number: prNumber,
-                assignees: ['copilot']
+                body: '@copilot Please run `pnpm format` in the affected package directory and push the formatted files to fix the Check-format CI failure.'
               });
-
-              const assigned = result.data.assignees?.some(a => a.login === 'copilot');
-              if (assigned) {
-                core.info(`Successfully assigned PR #${prNumber} to Copilot coding agent`);
-              } else {
-                core.warning(`copilot was not added to PR #${prNumber} assignees. Got: ${JSON.stringify(result.data.assignees?.map(a => a.login))}`);
-              }
+              core.info(`Posted @copilot comment on PR #${prNumber} to trigger formatting fix`);
             }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
