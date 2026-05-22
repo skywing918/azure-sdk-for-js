@@ -1,4 +1,4 @@
-name: Copilot Format Fixer
+name: Auto Format Fixer
 
 on:
   workflow_run:
@@ -6,61 +6,140 @@ on:
     types: [completed]
 
 jobs:
-  assign-to-copilot:
+  fix-format:
     runs-on: ubuntu-latest
     permissions:
-      issues: write
+      contents: write
       pull-requests: write
+      issues: write
     steps:
-      - name: Assign PR to Copilot if copilot-fix-format label is present
+      - name: Find PR with copilot-fix-format label
+        id: find-pr
         uses: actions/github-script@v9
         with:
-          # Must use a PAT (not GITHUB_TOKEN) to trigger Copilot coding agent.
-          # GITHUB_TOKEN is a bot token — assignments made by bots do not trigger Copilot.
-          github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             const headSha = context.payload.workflow_run.head_sha;
-
-            // Find PRs associated with this commit sha
             const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
               ...context.repo,
               commit_sha: headSha
             });
-
-            // Process ALL PRs with the label (same commit may appear in multiple PRs)
             const targetPRs = prs.filter(pr => pr.labels.some(l => l.name === 'copilot-fix-format'));
             if (targetPRs.length === 0) {
               core.info('No PR with copilot-fix-format label found for this workflow run');
+              core.setOutput('has-pr', 'false');
               return;
             }
+            const pr = targetPRs[0];
+            core.info(`Found PR #${pr.number} on branch ${pr.head.ref}`);
+            core.setOutput('has-pr', 'true');
+            core.setOutput('pr-number', String(pr.number));
+            core.setOutput('pr-branch', pr.head.ref);
+            core.setOutput('pr-repo', pr.head.repo.full_name);
 
-            for (const targetPR of targetPRs) {
-              const prNumber = targetPR.number;
-              core.info(`Found PR #${prNumber} with copilot-fix-format label`);
+      - name: Checkout PR branch
+        if: steps.find-pr.outputs.has-pr == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.find-pr.outputs.pr-branch }}
+          repository: ${{ steps.find-pr.outputs.pr-repo }}
+          # Token with write access needed to push the fix commit back
+          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
-              // Remove trigger label (GITHUB_TOKEN is fine here)
-              const octokit = getOctokit(process.env.GITHUB_TOKEN);
-              try {
-                await octokit.rest.issues.removeLabel({
-                  ...context.repo,
-                  issue_number: prNumber,
-                  name: 'copilot-fix-format'
-                });
-                core.info(`Removed copilot-fix-format label from PR #${prNumber}`);
-              } catch (e) {
-                core.warning(`Could not remove trigger label from PR #${prNumber}: ${e.message}`);
-              }
+      - name: Setup Node.js
+        if: steps.find-pr.outputs.has-pr == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-              // Trigger Copilot coding agent by posting a @copilot comment using PAT.
-              // Comment-based trigger is proven to work (assignment via API silently fails with bot tokens).
-              // Requires GH_AW_GITHUB_TOKEN to be a real user PAT — if only GITHUB_TOKEN is available,
-              // this comment will appear as the bot and will NOT trigger Copilot.
+      - name: Setup pnpm
+        if: steps.find-pr.outputs.has-pr == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Find affected packages and run pnpm format
+        if: steps.find-pr.outputs.has-pr == 'true'
+        run: |
+          # Find unique package directories (sdk/<service>/<package>) from changed files
+          PKGS=$(git diff --name-only origin/main...HEAD \
+            | grep '^sdk/' \
+            | sed 's|\(sdk/[^/]*/[^/]*\)/.*|\1|' \
+            | sort -u)
+
+          echo "Affected packages:"
+          echo "$PKGS"
+
+          if [ -z "$PKGS" ]; then
+            echo "No sdk/ packages changed, nothing to format"
+            exit 0
+          fi
+
+          # Build pnpm filter args (e.g. --filter=@azure/arm-foo...)
+          FILTERS=""
+          for pkg in $PKGS; do
+            if [ -f "$pkg/package.json" ]; then
+              PKG_NAME=$(node -p "require('./$pkg/package.json').name")
+              FILTERS="$FILTERS --filter=${PKG_NAME}"
+            fi
+          done
+
+          # Install only the affected packages and their dependencies
+          pnpm install $FILTERS --frozen-lockfile
+
+          # Run format in each affected package directory
+          for pkg in $PKGS; do
+            if [ -f "$pkg/package.json" ]; then
+              echo "Running pnpm format in $pkg"
+              (cd "$pkg" && pnpm format)
+            fi
+          done
+
+      - name: Commit and push formatting changes
+        if: steps.find-pr.outputs.has-pr == 'true'
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet; then
+            echo "No formatting changes needed"
+            echo "CHANGES=false" >> $GITHUB_OUTPUT
+          else
+            git add -A
+            git commit -m "chore: apply prettier format fixes [skip ci]"
+            git push
+            echo "CHANGES=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Remove label and post result comment
+        if: steps.find-pr.outputs.has-pr == 'true'
+        uses: actions/github-script@v9
+        env:
+          CHANGES: ${{ steps.commit.outputs.CHANGES }}
+        with:
+          script: |
+            const prNumber = parseInt('${{ steps.find-pr.outputs.pr-number }}');
+
+            // Always remove the trigger label
+            try {
+              await github.rest.issues.removeLabel({
+                ...context.repo,
+                issue_number: prNumber,
+                name: 'copilot-fix-format'
+              });
+              core.info(`Removed copilot-fix-format label from PR #${prNumber}`);
+            } catch (e) {
+              core.warning(`Could not remove label: ${e.message}`);
+            }
+
+            if (process.env.CHANGES === 'true') {
               await github.rest.issues.createComment({
                 ...context.repo,
                 issue_number: prNumber,
-                body: '@copilot Please run `pnpm format` in the affected package directory and push the formatted files to fix the Check-format CI failure.'
+                body: '✅ Automatically ran `pnpm format` and pushed the formatting fixes. Check-format should now pass.'
               });
-              core.info(`Posted @copilot comment on PR #${prNumber} to trigger formatting fix`);
+              core.info(`Posted success comment on PR #${prNumber}`);
+            } else {
+              core.info(`No formatting changes were needed for PR #${prNumber}`);
             }
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
