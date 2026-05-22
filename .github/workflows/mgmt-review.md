@@ -59,7 +59,7 @@ network:
 tools:
   github:
     toolsets: [context, repos, pull_requests, actions]
-  web-fetch:
+  bash: true
   cache-memory:
   repo-memory:
 safe-outputs:
@@ -186,9 +186,9 @@ Store a brief summary in `cache-memory` (PR number, package, outcome) so future 
 - Fetch PR details, check statuses, changed files, and workflow runs using GitHub MCP tools.
 - **Distinguish between CI systems:**
   - **Azure DevOps pipelines** (e.g., `js - PullRequest`): These are NOT GitHub Actions jobs. Do NOT call `get_job_logs` for them — it will return 404. Instead, extract the `target_url` or `details_url` from the check run API. The URL pattern is `https://dev.azure.com/azure-sdk/public/_build/results?buildId=<ID>&view=results`. Include it in the comment as a clickable link.
-    - **Fetching ADO logs**: ADO logs for the `azure-sdk/public` project are publicly accessible. Extract the `buildId` from the `target_url`, then use the `web_fetch` tool to query the ADO REST API:
-      1. **Timeline** (lists all jobs/tasks and their results): fetch `https://dev.azure.com/azure-sdk/public/_apis/build/builds/<buildId>/timeline?api-version=7.1` — look for `records` with `result: "failed"`. Each record has a `log.url` field.
-      2. **Logs** (actual log content for a failed task): fetch `<log.url>` — returns plain-text log output. Search for error messages.
+    - **Fetching ADO logs**: ADO logs for the `azure-sdk/public` project are publicly accessible. Extract the `buildId` from the `target_url`, then use `curl` (via bash) to query the ADO REST API:
+      1. **Timeline** (lists all jobs/tasks and their results): `curl -s "https://dev.azure.com/azure-sdk/public/_apis/build/builds/<buildId>/timeline?api-version=7.1"` — look for `records` with `result: "failed"`. Each record has a `log.url` field.
+      2. **Logs** (actual log content for a failed task): `curl -s "<log.url>"` — returns plain-text log output. Search for error messages.
       3. **If checks are still in progress**: If the timeline shows records with `result: null` or `state: "inProgress"` and no failed records are available yet, wait **5 minutes** and then re-query the timeline and logs before proceeding. Retry at most once; if checks are still running after the retry, mark them as "⏳ still running" in the comment.
       Use these logs to diagnose failures with specifics rather than guessing from check names alone.
     - **CRITICAL**: You MUST use the real `target_url` from the check run API response for ADO links. NEVER use placeholder URLs like `dev.azure.com/redacted` or fabricate URLs. If the `target_url` is unavailable, omit the link entirely rather than using a fake one.
@@ -233,7 +233,7 @@ These are exact strings/patterns to search for in CI logs and PR status. They ar
 | `UnitTest FAILED` request url mismatch | Stale test recordings | You need to record new recordings per [test guide](https://github.com/Azure/azure-sdk-for-js/blob/main/documentation/Quickstart-on-how-to-write-tests.md#run-tests-in-record-mode). Or you could simply skip tests with maintainer approval. | No |
 | `UnitTest FAILED` missing browser recordings | Missing browser recordings | You need to record browser recordings per [test guide](https://github.com/Azure/azure-sdk-for-js/blob/main/documentation/Quickstart-on-how-to-write-tests.md#run-tests-in-record-mode). | No |
 | `Build FAILED` | Compilation failure | Fix compile errors | No |
-| `Check-format FAILED` | Code not formatted | Run `cd <package-dir> && pnpm format` locally and push the result | No |
+| `Check-format FAILED` | Code not formatted | Post a comment that triggers `@copilot` to run `pnpm format` and push the result automatically | Yes |
 | `verify-links` broken URL | Broken markdown links | Add URL to `eng/ignore-links.txt` | No |
 | PR `Merging is blocking` pnpm-lock conflict | pnpm-lock.yaml conflict | Bot regenerates `pnpm-lock.yaml` and pushes the fix to the PR branch; if auto-fix fails, follow the [conflict guide](https://github.com/Azure/azure-sdk-for-js/blob/main/documentation/resolve-pnpm-lock-merge-conflict.md) | No |
 | `ERR_PNPM_LOCKFILE_MISSING_DEPENDENCY` Broken lockfile | pnpm-lock.yaml conflict | Bot regenerates `pnpm-lock.yaml` and pushes the fix to the PR branch; if auto-fix fails, follow the [conflict guide](https://github.com/Azure/azure-sdk-for-js/blob/main/documentation/resolve-pnpm-lock-merge-conflict.md) | NO |
@@ -257,9 +257,13 @@ Compose a single GitHub PR comment (not a review) with:
 - **Message**: `Only failed checks and required actions are listed below:`
 - Include **all** currently failing/blocking checks from your Step 2 list:
   - Not fixed: `- ❌ <Check name>: <reason>. Action: <fix steps>. Review [ADO logs](<target_url from check API>).`
-  - For `Check-format FAILED` specifically, use this format:
+  - For `Check-format FAILED` specifically, trigger Copilot to auto-fix it by including `@copilot` in the comment body (outside any code block):
     ```
-    - ❌ Check-format: code not formatted. Action: Run the following command locally, then commit and push the result: `cd <package-dir> && pnpm format`. Review [ADO logs](<target_url>).
+    - ❌ Check-format: code not formatted. Review [ADO logs](<target_url>).
+    ```
+    Then append at the end of the comment (outside the bullet list):
+    ```
+    @copilot Please fix the formatting issue in this PR: identify the affected package from the CI logs, run `pnpm format` inside that package directory, commit the changes, and push to this PR branch.
     ```
   - pnpm-lock conflict (manual): `- 🔄 pnpm-lock conflict: <reason>. Follow the [conflict guide](...).`
   - Still running: `- ⏳ <Check name>: still running.`
