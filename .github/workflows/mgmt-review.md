@@ -106,7 +106,7 @@ Follow the guidelines in [mgmt-review-guidelines.md](../prompts/mgmt-review-guid
 
 - Focus the review on changes relevant to the listed validation rules for **tooling** and **public API surface** in the guidelines.
 - Ignore implementation internals, private methods, generated code, and test or samples files.
-- Do **not** comment on style, formatting, documentation, or whitespace.
+- Do **not** comment on style, formatting, documentation, or whitespace. If you detect formatting issues in the code diff, do **not** file inline review comments for them — they are handled by the auto-fix mechanism. Instead, record them as a `Check-format FAILED` blocker in the guidance workflow.
 - Do **not** flag issues in APIs tagged `@internal`.
 - Do **not** flag undocumented APIs.
 - Do **not** flag issues in submodules.
@@ -233,7 +233,7 @@ These are exact strings/patterns to search for in CI logs and PR status. They ar
 | `UnitTest FAILED` request url mismatch | Stale test recordings | You need to record new recordings per [test guide](https://github.com/Azure/azure-sdk-for-js/blob/main/documentation/Quickstart-on-how-to-write-tests.md#run-tests-in-record-mode). Or you could simply skip tests with maintainer approval. | No |
 | `UnitTest FAILED` missing browser recordings | Missing browser recordings | You need to record browser recordings per [test guide](https://github.com/Azure/azure-sdk-for-js/blob/main/documentation/Quickstart-on-how-to-write-tests.md#run-tests-in-record-mode). | No |
 | `Build FAILED` | Compilation failure | Fix compile errors | No |
-| `Check-format FAILED` | Code not formatted | Add label `copilot-fix-format` to assign Copilot coding agent to fix formatting automatically | Yes |
+| `Check-format FAILED` OR formatting issues detected from code diff | Code not formatted | Add label `copilot-fix-format` to trigger auto-fix — **do not file inline review comments for formatting** | Yes |
 | `verify-links` broken URL | Broken markdown links | Add URL to `eng/ignore-links.txt` | No |
 | PR `Merging is blocking` pnpm-lock conflict | pnpm-lock.yaml conflict | Bot regenerates `pnpm-lock.yaml` and pushes the fix to the PR branch; if auto-fix fails, follow the [conflict guide](https://github.com/Azure/azure-sdk-for-js/blob/main/documentation/resolve-pnpm-lock-merge-conflict.md) | No |
 | `ERR_PNPM_LOCKFILE_MISSING_DEPENDENCY` Broken lockfile | pnpm-lock.yaml conflict | Bot regenerates `pnpm-lock.yaml` and pushes the fix to the PR branch; if auto-fix fails, follow the [conflict guide](https://github.com/Azure/azure-sdk-for-js/blob/main/documentation/resolve-pnpm-lock-merge-conflict.md) | NO |
@@ -252,7 +252,7 @@ The comment must report **every** blocking item from your Step 2 list — not ju
 - Do NOT include any review comments.
 - Do NOT skip failures just because auto-fix was attempted but failed.
 
-**Before composing the comment**: If your Step 2 blocker list includes `Check-format FAILED`, call `add-labels(['copilot-fix-format'])` on the PR **right now**, before posting the comment. This is what actually triggers the Copilot coding agent — do not defer it to later.
+**Before composing the comment**: If your Step 2 blocker list includes `Check-format FAILED` **or if you detected any formatting/code style issues** (whether from CI check status or from inspecting the code diff), call `add-labels(['copilot-fix-format'])` on the PR **right now**, before posting the comment. This is what actually triggers the auto-fix — do not defer it to later.
 
 Compose a single GitHub PR comment (not a review) with:
 - **Header**: `## Next Steps to Merge`
