@@ -79,7 +79,7 @@ safe-outputs:
     target: "${{ github.event.pull_request.number || github.event.issue.number }}"
   add-labels:
     max: 1
-    target: "${{ github.event.pull_request.number || github.event.issue.number }}"
+    target: "${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.item_number }}"
   remove-labels:
     max: 1
     target: "${{ github.event.pull_request.number || github.event.issue.number }}"
