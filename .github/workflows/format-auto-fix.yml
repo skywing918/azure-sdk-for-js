@@ -13,23 +13,38 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - name: Find PR with SDK Format Auto-Fix label
+      - name: Find PR with auto-format-needed label
         id: find-pr
         uses: actions/github-script@v9
         with:
           script: |
-            const headSha = context.payload.workflow_run.head_sha;
-            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-              ...context.repo,
-              commit_sha: headSha
-            });
-            const targetPRs = prs.filter(pr => pr.labels.some(l => l.name === 'auto-format-needed'));
-            if (targetPRs.length === 0) {
-              core.info('No PR with auto-format-needed label found for this workflow run');
+            // mgmt-review is triggered via workflow_dispatch with input item_number=<PR number>.
+            // Read it directly from the workflow_run inputs — no PR scanning needed.
+            const inputs = context.payload.workflow_run.inputs;
+            const prNumber = inputs?.item_number ? parseInt(inputs.item_number) : null;
+            if (!prNumber) {
+              core.info('No item_number in workflow_run inputs — skipping');
               core.setOutput('has-pr', 'false');
               return;
             }
-            const pr = targetPRs[0];
+
+            const { data: pr } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: prNumber,
+            });
+
+            if (pr.state !== 'open') {
+              core.info(`PR #${prNumber} is not open — skipping`);
+              core.setOutput('has-pr', 'false');
+              return;
+            }
+
+            if (!pr.labels.some(l => l.name === 'auto-format-needed')) {
+              core.info(`PR #${prNumber} does not have auto-format-needed label — skipping`);
+              core.setOutput('has-pr', 'false');
+              return;
+            }
+
             core.info(`Found PR #${pr.number} on branch ${pr.head.ref}`);
             core.setOutput('has-pr', 'true');
             core.setOutput('pr-number', String(pr.number));
