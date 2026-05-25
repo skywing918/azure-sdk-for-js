@@ -1,0 +1,106 @@
+name: Check Format
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "sdk/**"
+    types: [opened, synchronize, reopened]
+
+jobs:
+  check-format:
+    name: check-format
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Find changed sdk packages
+        id: find-packages
+        run: |
+          PKGS=$(git diff --name-only \
+            "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" \
+            | grep '^sdk/' \
+            | sed 's|\(sdk/[^/]*/[^/]*\)/.*|\1|' \
+            | sort -u | tr '\n' ' ')
+
+          if [ -z "$(echo "$PKGS" | tr -d ' ')" ]; then
+            echo "No sdk/ packages changed — skipping format check"
+            echo "has-packages=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Changed packages: $PKGS"
+            echo "has-packages=true" >> "$GITHUB_OUTPUT"
+            echo "packages=$PKGS" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install workspace dependencies for changed packages
+        if: steps.find-packages.outputs.has-packages == 'true'
+        env:
+          CHANGED_PKGS: ${{ steps.find-packages.outputs.packages }}
+        run: |
+          FILTERS=""
+          for pkg in $CHANGED_PKGS; do
+            if [ -f "$pkg/package.json" ]; then
+              PKG_NAME=$(node -p "require('./$pkg/package.json').name")
+              FILTERS="$FILTERS --filter=$PKG_NAME"
+            fi
+          done
+          # Install only the affected packages so prettier is available
+          # shellcheck disable=SC2086
+          pnpm install $FILTERS --frozen-lockfile=false
+
+      - name: Run format check
+        if: steps.find-packages.outputs.has-packages == 'true'
+        id: format-check
+        env:
+          CHANGED_PKGS: ${{ steps.find-packages.outputs.packages }}
+        run: |
+          REPO_ROOT=$(pwd)
+          FAILED=false
+
+          for pkg in $CHANGED_PKGS; do
+            if [ ! -f "$pkg/package.json" ]; then
+              continue
+            fi
+            PKG_NAME=$(node -p "require('./$pkg/package.json').name")
+
+            # Check if the package has a check-format script
+            HAS_SCRIPT=$(node -p "require('./$pkg/package.json').scripts?.['check-format'] ?? ''")
+            if [ -z "$HAS_SCRIPT" ]; then
+              echo "⚠️  $PKG_NAME has no check-format script — skipping"
+              continue
+            fi
+
+            echo "=== Checking format: $PKG_NAME ==="
+            if ! (cd "$pkg" && pnpm check-format 2>&1); then
+              FAILED=true
+              echo "❌ Format check FAILED in $PKG_NAME"
+            else
+              echo "✅ Format OK: $PKG_NAME"
+            fi
+          done
+
+          if [ "$FAILED" = "true" ]; then
+            echo "format-ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "format-ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fail if format issues found
+        if: steps.find-packages.outputs.has-packages == 'true' && steps.format-check.outputs.format-ok == 'false'
+        run: |
+          echo ""
+          echo "❌ Check-format FAILED — one or more packages need reformatting."
+          echo "   Run 'pnpm format' in the affected package(s) to fix, or wait for"
+          echo "   the auto-fix workflow to apply the changes automatically."
+          exit 1
