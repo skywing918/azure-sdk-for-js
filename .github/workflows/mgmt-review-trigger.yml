@@ -1,0 +1,52 @@
+name: Management Review Trigger
+
+# GitHub Event Processor adds labels (mgmt-review-needed) using GITHUB_TOKEN.
+# GITHUB_TOKEN-triggered events cannot directly trigger other workflows.
+# This workflow bridges that gap: it fires after GitHub Event Processor completes,
+# checks if the PR now has mgmt-review-needed, and dispatches the review workflow.
+
+on:
+  workflow_run:
+    workflows: ["GitHub Event Processor"]
+    types: [completed]
+
+jobs:
+  trigger-mgmt-review:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      pull-requests: read
+    steps:
+      - name: Dispatch mgmt-review if PR has mgmt-review-needed label
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const headSha = context.payload.workflow_run.head_sha;
+
+            // Find PRs associated with this commit
+            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              ...context.repo,
+              commit_sha: headSha
+            });
+
+            const mgmtPRs = prs.filter(pr =>
+              pr.state === 'open' &&
+              pr.labels.some(l => l.name === 'mgmt-review-needed')
+            );
+
+            if (mgmtPRs.length === 0) {
+              core.info('No open PR with mgmt-review-needed label — nothing to do');
+              return;
+            }
+
+            for (const pr of mgmtPRs) {
+              core.info(`Dispatching mgmt-review for PR #${pr.number}`);
+              await github.rest.actions.createWorkflowDispatch({
+                ...context.repo,
+                workflow_id: 'mgmt-review.lock.yml',
+                ref: pr.base.ref,  // dispatch on the branch where workflow file lives
+                inputs: {
+                  item_number: String(pr.number)
+                }
+              });
+            }
