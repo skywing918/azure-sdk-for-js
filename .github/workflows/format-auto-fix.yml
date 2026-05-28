@@ -18,7 +18,6 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      issues: write
     steps:
       - name: Find PR with auto-format-needed label
         id: find-pr
@@ -133,18 +132,6 @@ jobs:
         with:
           script: |
             const prNumber = parseInt('${{ steps.find-pr.outputs.pr-number }}');
-
-            // Always remove the trigger label
-            try {
-              await github.rest.issues.removeLabel({
-                ...context.repo,
-                issue_number: prNumber,
-                name: 'auto-format-needed'
-              });
-              core.info(`Removed auto-format-needed label from PR #${prNumber}`);
-            } catch (e) {
-              core.warning(`Could not remove label: ${e.message}`);
-            }
 
             if (process.env.CHANGES === 'true') {
               await github.rest.issues.createComment({
