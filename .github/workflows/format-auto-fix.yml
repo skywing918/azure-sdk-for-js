@@ -128,7 +128,8 @@ jobs:
           done
 
           # Install only the affected packages and their dependencies
-          pnpm install $FILTERS --frozen-lockfile=false
+          # --ignore-scripts prevents lifecycle scripts (pre/postinstall) from running
+          pnpm install $FILTERS --frozen-lockfile=false --ignore-scripts
 
           # Run format in each affected package directory
           for pkg in $PKGS; do
