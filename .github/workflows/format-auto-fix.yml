@@ -39,12 +39,43 @@ jobs:
             if (pr.state !== 'open') {
               core.info(`PR #${prNumber} is not open — skipping`);
               core.setOutput('has-pr', 'false');
+              core.setOutput('is-fork', 'false');
+              return;
+            }
+            // Security: only auto-fix branches in the base repository.
+            // Checking out a fork and running its package.json scripts with a
+            // write token would allow an attacker to execute arbitrary code.
+            const baseRepo = `${context.repo.owner}/${context.repo.repo}`;
+            if (pr.head.repo.full_name !== baseRepo) {
+              core.warning(`PR #${prNumber} is from fork ${pr.head.repo.full_name} — skipping auto-fix`);
+              core.setOutput('has-pr', 'false');
+              core.setOutput('is-fork', 'true');
               return;
             }
             core.info(`Processing PR #${pr.number} on branch ${pr.head.ref}`);
             core.setOutput('has-pr', 'true');
+            core.setOutput('is-fork', 'false');
             core.setOutput('pr-branch', pr.head.ref);
             core.setOutput('pr-repo', pr.head.repo.full_name);
+
+      - name: Notify fork PR author
+        if: steps.find-pr.outputs.is-fork == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: parseInt(context.payload.inputs.pr_number),
+              body: [
+                '⚠️ **Format auto-fix skipped for fork PR.**',
+                '',
+                'The auto-fix workflow does not run on pull requests from forks to avoid',
+                'executing untrusted code with repository write access.',
+                '',
+                'Please run `pnpm format` locally in the affected package(s) and push the',
+                'formatting changes to your branch.',
+              ].join('\n'),
+            });
 
       - name: Checkout PR branch
         if: steps.find-pr.outputs.has-pr == 'true'
@@ -60,17 +91,31 @@ jobs:
         if: steps.find-pr.outputs.has-pr == 'true'
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '20'
+          node-version: 'lts/*'
 
       - name: Setup pnpm
         if: steps.find-pr.outputs.has-pr == 'true'
         uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
+        with:
+          version: '10.33.0'
 
       - name: Find affected packages and run pnpm format
         if: steps.find-pr.outputs.has-pr == 'true'
         run: |
+          UPSTREAM_REPO_URL="${{ github.server_url }}/${{ github.repository }}.git"
+          UPSTREAM_DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+
+          # `origin` points at the PR head repository after checkout, which may be a fork.
+          # Fetch the workflow repository's default branch explicitly and diff against that.
+          if git remote get-url upstream >/dev/null 2>&1; then
+            git remote set-url upstream "$UPSTREAM_REPO_URL"
+          else
+            git remote add upstream "$UPSTREAM_REPO_URL"
+          fi
+          git fetch --no-tags upstream "${UPSTREAM_DEFAULT_BRANCH}:refs/remotes/upstream/${UPSTREAM_DEFAULT_BRANCH}"
+
           # Find unique package directories (sdk/<service>/<package>) from changed files
-          PKGS=$(git diff --name-only origin/main...HEAD \
+          PKGS=$(git diff --name-only "upstream/${UPSTREAM_DEFAULT_BRANCH}...HEAD" \
             | grep '^sdk/' \
             | sed 's|\(sdk/[^/]*/[^/]*\)/.*|\1|' \
             | sort -u)
@@ -118,9 +163,15 @@ jobs:
             git diff --name-only \
               | grep -E '\.(ts|mts|cts|tsx|js|mjs|cjs|jsx|json|md|yaml|yml)$' \
               | xargs -r git add --
-            git commit -m "chore: apply prettier format fixes"
-            git push
-            echo "CHANGES=true" >> $GITHUB_OUTPUT
+
+            if git diff --cached --quiet; then
+              echo "Formatting changes were detected, but none matched the commit allow-list"
+              echo "CHANGES=false" >> $GITHUB_OUTPUT
+            else
+              git commit -m "chore: apply prettier format fixes"
+              git push
+              echo "CHANGES=true" >> $GITHUB_OUTPUT
+            fi
           fi
 
       - name: Post result comment
