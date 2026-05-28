@@ -117,9 +117,9 @@ jobs:
             echo "No formatting changes needed"
             echo "CHANGES=false" >> $GITHUB_OUTPUT
           else
-            git add -- '*.ts' '*.mts' '*.cts' '*.tsx' \
-                       '*.js' '*.mjs' '*.cjs' '*.jsx' \
-                       '*.json' '*.md' '*.yaml' '*.yml'
+            git diff --name-only \
+              | grep -E '\.(ts|mts|cts|tsx|js|mjs|cjs|jsx|json|md|yaml|yml)$' \
+              | xargs -r git add --
             git commit -m "chore: apply prettier format fixes"
             git push
             echo "CHANGES=true" >> $GITHUB_OUTPUT
