@@ -19,7 +19,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - name: Find PR with auto-format-needed label
+      - name: Fetch and validate PR
         id: find-pr
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
@@ -43,7 +43,6 @@ jobs:
             }
             core.info(`Processing PR #${pr.number} on branch ${pr.head.ref}`);
             core.setOutput('has-pr', 'true');
-            core.setOutput('pr-number', String(pr.number));
             core.setOutput('pr-branch', pr.head.ref);
             core.setOutput('pr-repo', pr.head.repo.full_name);
 
@@ -124,14 +123,14 @@ jobs:
             echo "CHANGES=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Remove label and post result comment
+      - name: Post result comment
         if: steps.find-pr.outputs.has-pr == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           CHANGES: ${{ steps.commit.outputs.CHANGES }}
         with:
           script: |
-            const prNumber = parseInt('${{ steps.find-pr.outputs.pr-number }}');
+            const prNumber = parseInt(context.payload.inputs.pr_number);
 
             if (process.env.CHANGES === 'true') {
               await github.rest.issues.createComment({
