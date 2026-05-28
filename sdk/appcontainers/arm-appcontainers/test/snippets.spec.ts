@@ -8,20 +8,16 @@ import { describe, it } from "vitest";
 
 describe("snippets", () => {
   it("ReadmeSampleCreateClient_Node", async () => {
-    const subscriptionId = "00000000-0000-0000-0000-000000000000";
-    const client = new ContainerAppsAPIClient(new DefaultAzureCredential(), subscriptionId);
+    const subscriptionId = "00000000-0000-0000-0000-000000000000"; const client = new ContainerAppsAPIClient(new DefaultAzureCredential(), subscriptionId);
   });
 
   it("ReadmeSampleCreateClient_Browser", async () => {
     const credential = new InteractiveBrowserCredential({
-      tenantId: "<YOUR_TENANT_ID>",
-      clientId: "<YOUR_CLIENT_ID>",
+      tenantId: "<YOUR_TENANT_ID>", clientId: "<YOUR_CLIENT_ID>",
     });
     const subscriptionId = "00000000-0000-0000-0000-000000000000";
     const client = new ContainerAppsAPIClient(credential, subscriptionId);
   });
 
-  it("SetLogLevel", async () => {
-    setLogLevel("info");
-  });
+  it("SetLogLevel", async () => { setLogLevel("info"); });
 });
