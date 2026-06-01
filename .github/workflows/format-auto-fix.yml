@@ -83,8 +83,6 @@ jobs:
         with:
           ref: ${{ steps.find-pr.outputs.pr-branch }}
           repository: ${{ steps.find-pr.outputs.pr-repo }}
-          # Token with write access needed to push the fix commit back
-          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Setup Node.js
