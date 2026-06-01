@@ -128,7 +128,7 @@ jobs:
             exit 0
           fi
 
-          # Build pnpm filter args (e.g. --filter=@azure/arm-foo...)
+          # Build pnpm/turbo filter args (e.g. --filter=@azure/arm-foo...)
           FILTERS=""
           for pkg in $PKGS; do
             if [ -f "$pkg/package.json" ]; then
@@ -141,13 +141,8 @@ jobs:
           # --ignore-scripts prevents pre/postinstall lifecycle scripts from running
           pnpm install $FILTERS --frozen-lockfile=false --ignore-scripts
 
-          # Run format in each affected package directory
-          for pkg in $PKGS; do
-            if [ -f "$pkg/package.json" ]; then
-              echo "Running pnpm format in $pkg"
-              (cd "$pkg" && pnpm format)
-            fi
-          done
+          # Run format across all affected packages in one turbo invocation
+          pnpm turbo run format $FILTERS
 
       - name: Commit and push formatting changes
         if: steps.find-pr.outputs.has-pr == 'true'
