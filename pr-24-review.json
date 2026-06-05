@@ -1,0 +1,16 @@
+{
+  "pr": 24,
+  "repo": "skywing918/azure-sdk-for-js",
+  "package": "@azure/arm-appcontainers",
+  "head_sha": "b27f3208ba6397ce1cc0c16624bb827f8ce9503e",
+  "outcome": "clean",
+  "summary": "Only test file changed (snippets.spec.ts). No public API surface modifications. Format check failed, auto-fix dispatched.",
+  "reviewed_at": "2026-06-05T02:51:00Z",
+  "findings": [],
+  "labels_updated": {
+    "added": ["mgmt-review-added"]
+  },
+  "ci_status": {
+    "check_format": "failed - format-auto-fix workflow dispatched"
+  }
+}
