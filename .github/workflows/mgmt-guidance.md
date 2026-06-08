@@ -78,7 +78,7 @@ jobs:
 if: needs.pre_activation.outputs.ready == 'true' && needs.pre_activation.outputs.pr_number != ''
 
 concurrency:
-  group: "gh-aw-mgmt-guidance-${{ needs.pre_activation.outputs.pr_number }}"
+  group: "gh-aw-mgmt-guidance-${{ github.event.pull_request.number || github.event.inputs.item_number || github.event.check_run.pull_requests[0].number || github.run_id }}"
   cancel-in-progress: true
 
 description: "Post Next Steps to Merge once all CI checks complete on management-plane SDK PRs"
