@@ -38,8 +38,8 @@ on:
             return;
           }
 
-          if (!appName.includes('Azure Pipelines') ||
-              !checkName.startsWith('js - pullrequest')) {
+          const isKnownApp = appName.includes('Azure Pipelines') || appName.includes('GitHub Actions');
+          if (!isKnownApp || !checkName.startsWith('js - pullrequest')) {
             core.setOutput('ready', 'false');
             return;
           }
