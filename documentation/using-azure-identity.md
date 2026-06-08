@@ -259,24 +259,27 @@ that have been tested to confirm support for managed identity authentication.
 
 ### InteractiveBrowserCredential
 
-The `InteractiveBrowserCredential` follows the [implicit grant
-flow](https://learn.microsoft.com/azure/active-directory/develop/v2-oauth2-implicit-grant-flow)
-which enables authentication for clients that run completely in the browser. It
-is primarily useful for single-page web applications (SPAs) which need to
-authenticate to access Azure resources and APIs directly.
+The `InteractiveBrowserCredential` follows the [Authorization Code
+Flow](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-auth-code-flow)
+which enables authentication in both browser and Node.js environments. In the
+browser it authenticates via popups (or redirects when `loginStyle: "redirect"`
+is set). On Node.js it opens a browser window and listens for a redirect
+response from the authentication service.
 
-To use this credential successfully, your app registration will need to be
-configured with both the **Access tokens** and **ID tokens** options checked under
-**Implicit grant** in the **Authentication** page.
+To use this credential successfully, you will need to add a redirect URI in the
+**Redirect URIs** section of the **Authentication** page for your app
+registration:
 
-You will also need to add a redirect URI in the **Redirect URIs** section of the
-**Authentication** page for your app registration. The redirect URI must point
-to the URI of your web application. You must also make sure to specify the same
-URI in the `redirectUri` field of the `InteractiveBrowserCredentialOptions` when
-creating an `InteractiveBrowserCredential`.
+- For **Node.js**, configure a "Mobile and desktop applications" redirect URI
+  (e.g., `http://localhost`). Follow the [setting up Redirect URIs for Desktop
+  apps guide](https://learn.microsoft.com/entra/identity-platform/scenario-desktop-app-registration#redirect-uris)
+  for details.
+- For **browsers**, configure a "Single-page application" redirect URI that
+  points to your web application's URI.
 
-> NOTE: At this time, this credential can only be used in the browser but
-> Node.js support will be added in the future (see issue [#4774](https://github.com/Azure/azure-sdk-for-js/issues/4774)).
+You must also specify the same URI in the `redirectUri` field of the
+`InteractiveBrowserCredentialOptions` when creating an
+`InteractiveBrowserCredential`.
 
 ### DeviceCodeCredential
 
