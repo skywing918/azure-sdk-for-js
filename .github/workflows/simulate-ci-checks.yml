@@ -1,0 +1,66 @@
+name: Simulate CI Checks
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  simulate:
+    name: simulate
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+    steps:
+      - name: Create in-progress check runs
+        uses: actions/github-script@v7
+        id: create-checks
+        with:
+          script: |
+            const checks = [
+              "js - pullrequest (Build Build)",
+              "js - pullrequest (Build Analyze)",
+              "js - pullrequest (Build UnitTest ubuntu_24x_node)",
+              "js - pullrequest (Build UnitTest windows_22x_node)",
+              "js - pullrequest (Build UnitTest windows_22x_browser)",
+              "js - pullrequest (Build UnitTest macoslatest_26x_node)",
+            ];
+
+            const ids = [];
+            for (const name of checks) {
+              const { data } = await github.rest.checks.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name,
+                head_sha: context.payload.pull_request.head.sha,
+                status: "in_progress",
+                started_at: new Date().toISOString(),
+              });
+              ids.push(data.id);
+              core.info(`Created check run: ${name} (id=${data.id})`);
+            }
+
+            core.setOutput("check-ids", ids.join(","));
+
+      - name: Simulate long-running CI (20 min)
+        run: sleep 1200
+
+      - name: Mark check runs as success
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          CHECK_IDS: ${{ steps.create-checks.outputs.check-ids }}
+        with:
+          script: |
+            const ids = process.env.CHECK_IDS.split(",").filter(Boolean);
+            for (const id of ids) {
+              await github.rest.checks.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                check_run_id: Number(id),
+                status: "completed",
+                conclusion: "success",
+                completed_at: new Date().toISOString(),
+              });
+              core.info(`Completed check run id=${id}`);
+            }
