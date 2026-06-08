@@ -62,6 +62,9 @@ jobs:
           # shellcheck disable=SC2086
           pnpm install $FILTERS --frozen-lockfile=false
 
+      - name: Simulate long-running check (remove when done testing)
+        run: sleep 1200
+
       - name: Run format check
         if: steps.find-packages.outputs.has-packages == 'true'
         id: format-check
