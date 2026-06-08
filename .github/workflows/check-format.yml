@@ -25,6 +25,9 @@ jobs:
       - name: Install pnpm
         run: npm install -g pnpm
 
+      - name: Simulate long-running check (remove when done testing)
+        run: sleep 1200
+
       - name: Find changed sdk packages
         id: find-packages
         run: |
