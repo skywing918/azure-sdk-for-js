@@ -49,8 +49,8 @@ See the [Javascript Codegen Quick Start for Test](https://github.com/Azure/azure
     You could follow the [basic RLC test interaction and recording example](https://github.com/Azure/azure-sdk-for-js/blob/main/documentation/Quickstart-on-how-to-write-tests.md#example-1-basic-rlc-test-interaction-and-recording-for-azure-data-plane-service) to write your test step by step.
 
     Also, you could refer to the below examples for more cases:
-    - RLC example: [OpenAI Testing](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/openai/openai/test/public)
-    - DPG example: [Maps Route Testing](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/maps/maps-route-rest/test/public)
+    - DPG example: [OpenAI Testing](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/openai/openai/test/public)
+    - RLC example: [Maps Route Testing](https://github.com/Azure/azure-sdk-for-js/tree/main/sdk/maps/maps-route-rest/test/public)
     - MPG example: [Containerservice Fleet Testing](https://github.com/Azure/azure-sdk-for-js/blob/main/sdk/containerservice/arm-containerservicefleet/test/public/)
 
 2. **Run the test**
@@ -125,7 +125,7 @@ Now, you can generate both JavaScript and TypeScript workable samples with the f
 
 ```shell
 cd ${PROJECT_ROOT}
-npx dev-tool samples publish -f
+dev-tool samples publish -f
 ```
 You will see the workable samples in the `${PROJECT_ROOT}/samples` folder.
 

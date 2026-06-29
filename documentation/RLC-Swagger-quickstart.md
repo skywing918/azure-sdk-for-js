@@ -228,7 +228,7 @@ Now, you can generate both JavaScript and TypeScript workable samples with the f
 
 ```shell
 cd ${PROJECT_ROOT}
-npx dev-tool samples publish -f
+dev-tool samples publish -f
 ```
 
 You will see the workable samples in the `${PROJECT_ROOT}/samples` folder.
