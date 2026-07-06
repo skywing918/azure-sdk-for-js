@@ -1,6 +1,6 @@
 # Reviewer Agents
 
-This repository includes seven specialized AI reviewer agents that can review
+This repository includes specialized AI reviewer agents that can review
 pull requests for specific quality dimensions. Each agent is an expert in its
 domain and produces targeted, actionable feedback.
 
@@ -15,6 +15,8 @@ domain and produces targeted, actionable feedback.
 | **Scribe** | `docs-review-needed` | Documentation — README, CHANGELOG, TSDoc, snippets, samples |
 | **Sentinel** | `security-review-needed` | Security — credential exposure, injection, unsafe patterns, supply chain |
 | **Tester** | `test-review-needed` | Testing — coverage, recorder setup, test quality, browser tests |
+
+The **Mgmt-breaking-change-analysis** agent is also available for on-demand analysis of breaking changes in ARM SDK PRs migrating from Swagger/AutoRest to TypeSpec. It does not use a label trigger — invoke it directly via VS Code Copilot Chat with `@mgmt-breaking-change-analysis`.
 
 ## Using Agents on Pull Requests
 
@@ -139,6 +141,7 @@ Agent definitions and their detailed review guidelines are stored in:
 │   ├── archie.agent.md
 │   ├── dash.agent.md
 │   ├── dexter.agent.md
+│   ├── mgmt-breaking-change-analysis.agent.md
 │   ├── mgmt-review.agent.md
 │   ├── scribe.agent.md
 │   ├── sentinel.agent.md
@@ -147,6 +150,8 @@ Agent definitions and their detailed review guidelines are stored in:
 │   ├── architecture-review-guidelines.md
 │   ├── performance-review-guidelines.md
 │   ├── dependency-review-guidelines.md
+│   ├── mgmt-breaking-change-analysis-guidelines.md
+│   ├── mgmt-breaking-change-patterns.md
 │   ├── mgmt-review-guidelines.md
 │   ├── documentation-review-guidelines.md
 │   ├── security-review-guidelines.md
