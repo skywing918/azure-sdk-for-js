@@ -11,7 +11,7 @@ Before customizing generated code, consider whether your change should be made i
 If your package has not been set up for customization yet, run the following command from the package directory:
 
 ```bash
-npx dev-tool customization init
+pnpm exec dev-tool customization init
 ```
 
 This will copy the contents of `src/` into `generated/`, establishing the baseline for the customization workflow. The command will fail if a `generated/` folder already exists (meaning customization is already set up).
@@ -54,7 +54,7 @@ As the service specification changes, it will become necessary to update your li
 Once you've done this, you can now run:
 
 ```bash
-npx dev-tool customization apply
+pnpm exec dev-tool customization apply
 ```
 
 This command will:
