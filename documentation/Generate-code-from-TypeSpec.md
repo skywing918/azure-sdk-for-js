@@ -49,7 +49,7 @@ SDK module would be generated under the SDK project folder at `sdk/<service>/<mo
 Install dependencies to use code-gen-pipeline,  
 ```ps
 npm --prefix eng/common/tsp-client ci
-npm install -g pnpm
+corepack enable && corepack install -g pnpm@latest
 npm --prefix eng/tools/js-sdk-release-tools ci
 ```
 
